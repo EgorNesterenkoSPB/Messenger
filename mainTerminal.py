@@ -6,9 +6,8 @@ import threading
 import json
 import atexit
 
-def logout():
-    global name
-    setOffineData = {"action":"set online","name":name,"online":0} # to set 0 in db when application is closed and the user is offline
+def logout(userName):
+    setOffineData = {"action":"set online","name":userName,"online":0} # to set 0 in db when application is closed and the user is offline
     jsonUserData = json.dumps(setOffineData).encode('utf8')
     s.sendall(jsonUserData)
 
@@ -21,7 +20,7 @@ def mainInterface(currentUserName):
         userCommand = input(">>")
 
         if userCommand == logoutString:
-            logout()
+            logout(currentUserName)
             login()
             break
         elif userCommand == helpString:
@@ -34,6 +33,20 @@ def mainInterface(currentUserName):
             s.sendall(jsonUserData)
             serverResponse = s.recv(1024).decode('utf8')
             print(serverResponse)
+        elif userCommand == "/online":
+            userData = {"action":"Request:online users"}
+            jsonUserData = json.dumps(userData).encode('utf8')
+            s.sendall(jsonUserData)
+            serverResponse = s.recv(1024).decode('utf8')
+            print("Online users:\n%s"%(serverResponse))
+        elif userCommand == "/search":
+            searchName = input("Name:")
+            userData = {"action":"Request:search user terminal","name":searchName}
+            jsonUserData = json.dumps(userData).encode('utf8')
+            s.sendall(jsonUserData)
+            serverResponse = s.recv(1024).decode('utf8')
+            print(serverResponse)
+
         
         else:
             print(unknownCommandString)
@@ -61,6 +74,9 @@ def login():
         print(serverResponse)
 
         if serverResponse == "Success login":
+            global name
+            name = nameLogin
+            atexit.register(onExitApp,name) # to set online 0 when application was exited
             mainInterface(nameLogin)
             break
 
@@ -92,9 +108,9 @@ def register():
         elif serverResponse == "Error register":
             print("This name is busy, use another one")
 
-def onExitApp():
+def onExitApp(userName):
     print("Exiting")
-    logout()
+    logout(userName)
 
 
 def main():
@@ -128,8 +144,6 @@ if __name__ == '__main__':
     logoutString = "/logout"
     backString = "/back"
     unknownCommandString = "Unknown command, use /help to see all available commands"
-
-    atexit.register(onExitApp)
 
     s = socket.socket()
     try:

@@ -116,7 +116,7 @@ def threaded_client(connection):
             usersName = ""
             for user in results:
                 if user[4] == 1:
-                    usersName += ",%s" % user[0]
+                    usersName += "%s\n" % user[0]
             connection.sendall(usersName.encode('utf8'))
 
         if userData["action"] == "set online":
@@ -178,6 +178,8 @@ def threaded_client(connection):
                 print("erorrrring")
                 connection.sendall("No user with this name or IP".encode('utf8'))
 
+        #//TODO: Console command handle
+
         if userData["action"] == "Request:userInfo": # console command from client
             result = fetchAllUsers()
             userInfo = ""
@@ -187,6 +189,19 @@ def threaded_client(connection):
                     userInfo = "Name: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
                     connection.sendall(userInfo.encode('utf8'))
                     break
+        if userData["action"] == "Request:search user terminal":
+            result = fetchAllUsers()
+            userInfo = ""
+            for user in result:
+                    if user[0] == userData["name"]:
+                        userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
+                        print(userInfo)
+                        connection.sendall(userInfo.encode('utf8'))
+                        break
+                    else:
+                        if user == result[len(result)-1]:
+                            connection.sendall("No user with this name".encode('utf8'))
+
 
 
 
