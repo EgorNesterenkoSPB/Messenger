@@ -192,15 +192,43 @@ def threaded_client(connection):
         if userData["action"] == "Request:search user terminal":
             result = fetchAllUsers()
             userInfo = ""
+            if "name" in userData and userData.get("ip") is None:
+                for user in result:
+                        if user[0] == userData["name"]:
+                            userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
+                            print(userInfo)
+                            connection.sendall(userInfo.encode('utf8'))
+                            break
+                        else:
+                            if user == result[len(result)-1]:
+                                connection.sendall("No user with this name".encode('utf8'))
+            elif "ip" in userData and userData.get("name") is None:
+                for user in result:
+                        if user[2] == userData["ip"]:
+                            userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
+                            print(userInfo)
+                            connection.sendall(userInfo.encode('utf8'))
+                            break
+                        else:
+                            if user == result[len(result)-1]:
+                                connection.sendall("No user with this ip".encode('utf8'))
+
+            
+        if userData["action"] == "Request:chat connect":
+            result = fetchAllUsers()
+
             for user in result:
-                    if user[0] == userData["name"]:
-                        userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                        print(userInfo)
-                        connection.sendall(userInfo.encode('utf8'))
+                if user[0] == userData["chatBuddyName"]:
+                    if user[4] == 1:
+                        connection.sendall("Successful connecion")
                         break
                     else:
-                        if user == result[len(result)-1]:
-                            connection.sendall("No user with this name".encode('utf8'))
+                        connection.sendall("The user isnt online")
+                        break
+                else:
+                    if user == result[len(result)-1]:
+                        connection.sendall("User with this name not found")
+                
 
 
 
