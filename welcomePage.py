@@ -220,12 +220,8 @@ class MainPage(tk.Frame):
         searchUserIPEntry = tk.Entry(master=searchUserFrame)
         searchUserNameLabel = tk.Label(master=searchUserFrame,text="Name:")
 
-        writeAddressFrame = tk.Frame(master=self,relief=tk.RIDGE,borderwidth=1)
-        writeAddressFrame.grid(row=0,column=2)
-        UIElementsArray.insert(0,writeAddressFrame)
-
         writeMessageFrame = tk.Frame(master=self,relief=tk.RIDGE,borderwidth=1)
-        writeMessageFrame.grid(row=0,column=3)
+        writeMessageFrame.grid(row=0,column=2)
         UIElementsArray.insert(0,writeMessageFrame)
 
         
@@ -247,18 +243,7 @@ class MainPage(tk.Frame):
         searchUserNameLabel.grid(row=0,column=0)
         searchUserIPLabel.grid(row=1,column=0)
         searchUserIPEntry.grid(row=1,column=1)
-        searchListbox.grid(row=1,column=1,sticky="nsew")
-
-        writeAddressButton = tk.Button(master=writeAddressFrame,text="Write address")
-        writeAddressIPLabel = tk.Label(master=writeAddressFrame,text="IP:")
-        writeAddressPortLabel = tk.Label(master=writeAddressFrame,text="Port:")
-        writeAddressIPEntry = tk.Entry(master=writeAddressFrame)
-        writeAddressPortEntry = tk.Entry(master=writeAddressFrame)
-        writeAddressIPLabel.grid(row=0,column=0)
-        writeAddressIPEntry.grid(row=0,column=1)
-        writeAddressPortLabel.grid(row=1,column=0)
-        writeAddressPortEntry.grid(row=1,column=1)
-        writeAddressButton.grid(row=2,column=1)
+        searchListbox.grid(row=1,column=1)
 
         startMessageWithUserButton = tk.Button(master=writeMessageFrame,text="Start chat")
         startMessageEntry = tk.Entry(master=writeMessageFrame)
@@ -266,6 +251,21 @@ class MainPage(tk.Frame):
         startMessageLabel.grid(row=0,column=0)
         startMessageEntry.grid(row=0,column=1)
         startMessageWithUserButton.grid(row=1,column=1)
+
+        chatFrame = tk.Frame(master=self,relief=tk.RIDGE,borderwidth=1)
+        chatFrame.grid(row=1,column=2,sticky="nsew")
+
+        opts = { 'ipadx': 10, 'ipady': 10, 'fill': tk.BOTH }
+
+        chatListbox = tk.Listbox(master=chatFrame)
+        chatListbox.pack(side=tk.TOP,**opts)
+        chatEntryMessage = tk.Entry(master=chatFrame)
+        chatEntryMessage.pack(side=tk.TOP,**opts)
+        chatDisconnectButton = tk.Button(master=chatFrame,text="Disconnect")
+        chatDisconnectButton.pack(side=tk.LEFT,**opts)
+        chatSendMessageButton = tk.Button(master=chatFrame,text="Send")
+        chatSendMessageButton.pack(side=tk.RIGHT,**opts)
+
 
 
 
