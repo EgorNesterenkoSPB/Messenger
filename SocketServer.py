@@ -178,6 +178,16 @@ def threaded_client(connection):
                 print("erorrrring")
                 connection.sendall("No user with this name or IP".encode('utf8'))
 
+        if userData["action"] == "Request:userInfo": # console command from client
+            result = fetchAllUsers()
+            userInfo = ""
+
+            for user in result:
+                if userData["name"] == user[0]:
+                    userInfo = "Name: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
+                    connection.sendall(userInfo.encode('utf8'))
+                    break
+
 
 
     
