@@ -1,10 +1,9 @@
-from cmath import pi
 from pyfiglet import figlet_format
 import getpass
 import socket
-import threading
 import json
 import atexit
+import time
 
 def logout(userName):
     setOffineData = {"action":"set online","name":userName,"online":0} # to set 0 in db when application is closed and the user is offline
@@ -86,8 +85,11 @@ def mainInterface(currentUserName):
                     if searchName == backString:
                         print("-------Back to choosing method to search user-------")
                         break
+                else:
+                    print(unknownCommandString)
+                    continue
 
-                    userData = {"action":"Request:search user terminal","name":searchName}
+                userData = {"action":"Request:search user terminal","name":searchName}
 
                 jsonUserData = json.dumps(userData).encode('utf8')
                 s.sendall(jsonUserData)
@@ -114,8 +116,10 @@ def mainInterface(currentUserName):
                 s.sendall(jsonUserData)
                 serverResponse = s.recv(1024).decode('utf8')
                 print(serverResponse)
+                serverResponseArray = serverResponse.split('\n')
 
-                if serverResponse == "Successful connecion":
+
+                if serverResponseArray[0] == "Successful connection":
                     print("Use /file to send file")
                     while True:
                         message = input(">>")
@@ -130,6 +134,18 @@ def mainInterface(currentUserName):
                         if message == backString:
                             print("-------Back to writing user name for connection chat stage-------")
                             break
+
+                        userMessage = {"action":"Send message","Sender":currentUserName,"Receiver":chatBuddyName,"data":time.ctime(),"message":message}
+                        jsonUserData = json.dumps(userMessage).encode('utf8')
+                        s.sendall(jsonUserData)
+                        serverResponse = s.recv(1024).decode('utf8')
+                        
+                        if serverResponse == "Message was send":
+                            print("                                     %s(%s):%s\n" % (currentUserName,time.ctime(),message)[::-1])
+                        else:
+                            print(serverResponse)
+
+
 
 
 

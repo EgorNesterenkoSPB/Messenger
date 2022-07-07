@@ -1,11 +1,10 @@
-import re
 import socket 
 import json
 import sqlite3
 import os
 from _thread import *
 from tkinter.messagebox import NO
-from unittest import result
+
 
 #//TODO: Create and socket server
 
@@ -28,6 +27,13 @@ def threaded_client(connection):
     conn = sqlite3.connect("usersDatabase.db")
     cur = conn.cursor()
 
+    cur.execute("""CREATE TABLE IF NOT EXISTS chat(
+        Sender TEXT,
+        Receiver TEXT,
+        data TEXT,
+        message TEXT);
+    """)
+
     cur.execute("""CREATE TABLE IF NOT EXISTS users(
         name TEXT,
         password TEXT,
@@ -39,6 +45,19 @@ def threaded_client(connection):
     conn.commit()
     conn.close()
     
+
+    def fetchAllChats():
+        conn = sqlite3.connect("usersDatabase.db")
+        cur = conn.cursor()
+
+        cur.execute("SELECT * FROM chat;")
+        results = cur.fetchall()
+
+        cur.close()
+        conn.commit()
+        conn.close()
+
+        return results
 
     def fetchAllUsers():
         conn = sqlite3.connect("usersDatabase.db")
@@ -91,25 +110,27 @@ def threaded_client(connection):
 
         if userData["action"] == "login": # login user
             results = fetchAllUsers()
-            print(results)
-            for user in results:
-                if user[0] == userData["name"] and user[1] == userData["password"]:
-                    connection.sendall("Success login".encode('utf8'))
+            if len(results) != 0:
+                for user in results:
+                    if user[0] == userData["name"] and user[1] == userData["password"]:
+                        connection.sendall("Success login".encode('utf8'))
 
-                    conn = sqlite3.connect("usersDatabase.db")
-                    cur = conn.cursor()
-                    cur.execute('''UPDATE users SET online = ? WHERE name = ?''', (1, userData["name"]))
-                    cur.execute('''UPDATE users SET ip = ? WHERE name = ?''', (userData["ip"], userData["name"]))
-                    cur.execute('''UPDATE users SET port = ? WHERE name = ?''', (userData["port"], userData["name"]))
-                    cur.close()
-                    conn.commit()
-                    conn.close()
+                        conn = sqlite3.connect("usersDatabase.db")
+                        cur = conn.cursor()
+                        cur.execute('''UPDATE users SET online = ? WHERE name = ?''', (1, userData["name"]))
+                        cur.execute('''UPDATE users SET ip = ? WHERE name = ?''', (userData["ip"], userData["name"]))
+                        cur.execute('''UPDATE users SET port = ? WHERE name = ?''', (userData["port"], userData["name"]))
+                        cur.close()
+                        conn.commit()
+                        conn.close()
 
 
-                    break
-                else:
-                    if user == results[len(results)-1]:
-                        connection.sendall("Error login".encode('utf8'))
+                        break
+                    else:
+                        if user == results[len(results)-1]:
+                            connection.sendall("Error login".encode('utf8'))
+            else:
+                connection.sendall("Error login")
         
         if userData["action"] == "Request:online users":
             results = fetchAllUsers()
@@ -141,11 +162,9 @@ def threaded_client(connection):
             userInfo = ""
 
             if "name" in userData and userData.get("ip") is None:
-                print("nameee")
                 for user in result:
                     if user[0] == userData["name"]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        print(userInfo)
                         connection.sendall(userInfo.encode('utf8'))
                         break
                     else:
@@ -153,29 +172,24 @@ def threaded_client(connection):
                             connection.sendall("No user with this name".encode('utf8'))
 
             elif "ip" in userData and userData.get("name") is None:
-                print("ipppp")
                 for user in result:
                     if user[2] == userData["ip"]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        print(userInfo)
                         connection.sendall(userInfo.encode('utf8'))
                         break
                     else:
                         if user == result[len(result)-1]:
                             connection.sendall("User with this ip not found".encode('utf8'))
             elif "name" in userData and "ip" in userData:
-                print("nameee and ippp")
                 for user in result:
                     if user[0] == userData["name"] and user[2] == userData["ip"]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        print(userInfo)
                         connection.sendall(userInfo.encode('utf8'))
                         break
                     else:
                         if user == result[len(result)-1]:
                             connection.sendall("No user with this name or IP".encode('utf8'))
             else:
-                print("erorrrring")
                 connection.sendall("No user with this name or IP".encode('utf8'))
 
         #//TODO: Console command handle
@@ -196,7 +210,6 @@ def threaded_client(connection):
                 for user in result:
                         if user[0] == userData["name"]:
                             userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                            print(userInfo)
                             connection.sendall(userInfo.encode('utf8'))
                             break
                         else:
@@ -206,7 +219,6 @@ def threaded_client(connection):
                 for user in result:
                         if user[2] == userData["ip"]:
                             userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                            print(userInfo)
                             connection.sendall(userInfo.encode('utf8'))
                             break
                         else:
@@ -216,23 +228,49 @@ def threaded_client(connection):
             
         if userData["action"] == "Request:chat connect":
             result = fetchAllUsers()
+            chats = fetchAllChats()
+            currentChat = ""
 
             for user in result:
                 if user[0] == userData["chatBuddyName"]:
-                    if user[4] == 1:
-                        connection.sendall("Successful connecion")
-                        break
-                    else:
-                        connection.sendall("The user isnt online")
-                        break
+                    for chat in chats:
+                        if chat[0] == userData["name"]:
+                            currentChat += "                                        %s(%s):%s\n" % (chat[0],chat[2],chat[3])[::-1]
+                        elif chat[1] == userData["name"]:
+                            currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
+                    sendData = "Successful connection\n%s" % (currentChat)
+                    connection.sendall(sendData.encode('utf8'))
+                    #connection.sendall("Successful connection".encode('utf8'))
+                    break
                 else:
                     if user == result[len(result)-1]:
                         connection.sendall("User with this name not found")
-                
+
+        if userData["action"] == "Send message":
+            
+            try:
+                conn = sqlite3.connect("usersDatabase.db")
+                cur = conn.cursor()
+                cur.execute("""INSERT INTO chat(Sender,Receiver,data,message) VALUES ('%s','%s','%s','%s');""" % (userData["Sender"],userData["Receiver"],userData["data"],userData["message"]))
+                cur.close()
+                conn.commit()
+                conn.close()
+                connection.sendall("Message was send".encode('utf8'))
+            except:
+                connection.sendall("Error sending message".encode('utf8'))
 
 
+            #chats = fetchAllChats()
 
+            #lastMessage = chats[len(chats)-1]
 
+            #if lastMessage[0] == userData["Sender"]:
+
+            
+
+            
+
+            
     
         jsonUserData = b''
 
