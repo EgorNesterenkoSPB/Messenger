@@ -23,7 +23,6 @@ def threaded_client(connection):
 
     #//TODO: Create database
 
-    #conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn = sqlite3.connect("usersDatabase.db")
     cur = conn.cursor()
 
@@ -240,7 +239,6 @@ def threaded_client(connection):
                             currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
                     sendData = "Successful connection\n%s" % (currentChat)
                     connection.sendall(sendData.encode('utf8'))
-                    #connection.sendall("Successful connection".encode('utf8'))
                     break
                 else:
                     if user == result[len(result)-1]:

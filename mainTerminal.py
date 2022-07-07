@@ -4,6 +4,7 @@ import socket
 import json
 import atexit
 import time
+from termcolor import colored
 
 def logout(userName):
     setOffineData = {"action":"set online","name":userName,"online":0} # to set 0 in db when application is closed and the user is offline
@@ -221,8 +222,8 @@ def onExitApp(userName):
 
 
 def main():
-    print(figlet_format("Messenger"))
-    print("Use /help to show all commands\n")
+    print(colored(figlet_format("Messenger"),"magenta"))
+    print(colored("------------------------------------------------------------------\nMessenger - python TCP chat script using socket server,all data stores at SQLite\nAt first u need to start SocketServer.py and then at another terminal start mainTerminal.py file how many like u wanna create clients,it depends of you,but socket server limit is 10 clients,however u can rewrite it in code at anytime\nIf u prefer GUI,after launch socket server, start welcomePage.py file\nUse /help to show all commands\n------------------------------------------------------------------","white"))
     print("1-Login\n2-Register")
 
     while True:
