@@ -1,3 +1,7 @@
+from ast import In
+from glob import glob
+import this
+from tracemalloc import start
 from pyfiglet import figlet_format
 import getpass
 import socket
@@ -5,17 +9,23 @@ import json
 import atexit
 import time
 from termcolor import colored
+import threading
+from _thread import *
+import os
+import ConstantStrings
+
+
 
 def logout(userName):
-    setOffineData = {"action":"set online","name":userName,"online":0} # to set 0 in db when application is closed and the user is offline
+    setOffineData = {ConstantStrings.actionKey:ConstantStrings.requestSetOnline,ConstantStrings.nameKey:userName,ConstantStrings.onlineKey:0} # to set 0 in db when application is closed and the user is offline
     jsonUserData = json.dumps(setOffineData).encode('utf8')
     s.sendall(jsonUserData)
 
 def mainInterface(currentUserName):
-    print("-------Main page-------")
+    print(colored("-------Main page-------","magenta"))
 
-    print("User %s is successfully logged" % (currentUserName))
-    print(allCommandsString)
+    print(colored("User %s is successfully logged" % (currentUserName),"yellow"))
+    print(colored(allCommandsString,"cyan"))
 
     while True:
         userCommand = input(">>")
@@ -25,24 +35,24 @@ def mainInterface(currentUserName):
             login()
             break
         elif userCommand == helpString:
-            print(allCommandsString)
+            print(colored(allCommandsString,"cyan"))
         elif userCommand == backString:
-            print("You cant come back to previous stage, write /logout to finish this session")
+            print(colored("You cant come back to previous stage, write /logout to finish this session","red"))
         elif userCommand == "/info":
-            userData = {"action":"Request:userInfo","name":currentUserName}
+            userData = {ConstantStrings.actionKey:ConstantStrings.requestUserInfo,ConstantStrings.nameKey:currentUserName}
             jsonUserData = json.dumps(userData).encode('utf8')
             s.sendall(jsonUserData)
             serverResponse = s.recv(1024).decode('utf8')
             print(serverResponse)
         elif userCommand == "/online":
-            userData = {"action":"Request:online users"}
+            userData = {ConstantStrings.actionKey:ConstantStrings.requestOnlineUsers}
             jsonUserData = json.dumps(userData).encode('utf8')
             s.sendall(jsonUserData)
             serverResponse = s.recv(1024).decode('utf8')
             print("Online users:\n%s"%(serverResponse))
         elif userCommand == "/search":
-            print("-------Searching user-------")
-            print("\nip - search user by ip\nname - search user by name")
+            print(colored("-------Searching user-------","magenta"))
+            print(colored("\nip - search user by ip\nname - search user by name","cyan"))
 
             while True:
                 userData = ""
@@ -53,10 +63,10 @@ def mainInterface(currentUserName):
                     login()
                     break
                 if searchChoosingUserBy == helpString:
-                    print(allCommandsString)
+                    print(colored(allCommandsString,"cyan"))
                     continue
                 if searchChoosingUserBy == backString:
-                    print("-------Back to main page-------")
+                    print(colored("-------Back to main page-------","magenta"))
                     break
                 if searchChoosingUserBy == "ip" or searchChoosingUserBy == "IP" or searchChoosingUserBy == "Ip":
                     searchIP = input("IP:")
@@ -66,13 +76,13 @@ def mainInterface(currentUserName):
                         login()
                         break
                     if searchIP == helpString:
-                        print(allCommandsString)
+                        print(colored(allCommandsString,"cyan"))
                         continue
                     if searchIP == backString:
-                        print("-------Back to choosing method to search user-------")
+                        print(colored("-------Back to choosing method to search user-------","magenta"))
                         break
 
-                    userData = {"action":"Request:search user terminal","ip":searchIP}
+                    userData = {ConstantStrings.actionKey:ConstantStrings.requestSearchUserTerminal,ConstantStrings.ipKey:searchIP}
                 if searchChoosingUserBy == "name" or searchChoosingUserBy == "Name":
                     searchName = input(">>Name:")
 
@@ -81,23 +91,23 @@ def mainInterface(currentUserName):
                         login()
                         break
                     if searchName == helpString:
-                        print(allCommandsString)
+                        print(colored(allCommandsString,"cyan"))
                         continue
                     if searchName == backString:
-                        print("-------Back to choosing method to search user-------")
+                        print(colored("-------Back to choosing method to search user-------","magenta"))
                         break
                 else:
-                    print(unknownCommandString)
+                    print(colored(unknownCommandString,"red"))
                     continue
 
-                userData = {"action":"Request:search user terminal","name":searchName}
+                userData = {ConstantStrings.actionKey:ConstantStrings.requestSearchUserTerminal,ConstantStrings.nameKey:searchName}
 
                 jsonUserData = json.dumps(userData).encode('utf8')
                 s.sendall(jsonUserData)
                 serverResponse = s.recv(1024).decode('utf8')
                 print(serverResponse)
         elif userCommand == "/chat":
-            print("-------Chat-------")
+            print(colored("-------Chat-------","magenta"))
             while True:
                 chatBuddyName = input(">>Name:")
 
@@ -106,13 +116,16 @@ def mainInterface(currentUserName):
                     login()
                     break
                 if chatBuddyName == helpString:
-                    print(allCommandsString)
+                    print(colored(allCommandsString,"cyan"))
                     continue
                 if chatBuddyName == backString:
-                    print("-------Back to main page-------")
+                    print(colored("-------Back to main page-------","magenta"))
                     break
+                if chatBuddyName == currentUserName:
+                    print(colored("You cant open chat with yourself","red"))
+                    continue
 
-                userData = {"action":"Request:chat connect","name":currentUserName,"chatBuddyName":chatBuddyName}
+                userData = {ConstantStrings.actionKey:ConstantStrings.requestChatConnect,ConstantStrings.nameKey:currentUserName,ConstantStrings.chatBuddyNameKey:chatBuddyName}
                 jsonUserData = json.dumps(userData).encode('utf8')
                 s.sendall(jsonUserData)
                 serverResponse = s.recv(1024).decode('utf8')
@@ -121,42 +134,83 @@ def mainInterface(currentUserName):
 
 
                 if serverResponseArray[0] == "Successful connection":
-                    print("Use /file to send file")
-                    while True:
+                    print(colored("Use /file:'filename' to send file\n/open:'filename' to open file\n/update to update chat","cyan"))
+                    
+                    while True:                  
                         message = input(">>")
+                        #message = ""
+                        #writeMessage_thread = threading.Thread(target=sendMessage,args=(message,))
+                        #writeMessage_thread.start()
+                        #print("Test message %s" % (message))
+
+                        #receive_thread = threading.Thread(target=receiveMessage) 
+                        #receive_thread.start() 
 
                         if message == logoutString:
                             logout(currentUserName)
                             login()
                             break
                         if message == helpString:
-                            print(allCommandsString)
+                            print(colored(allCommandsString,"cyan"))
                             continue
                         if message == backString:
-                            print("-------Back to writing user name for connection chat stage-------")
+                            print(colored("-------Back to writing user name for connection chat stage-------","magenta"))
                             break
+                        if message == "/update":
+                            userMessage = {ConstantStrings.actionKey:ConstantStrings.requestUpdateChat,ConstantStrings.nameKey:currentUserName,ConstantStrings.chatBuddyNameKey:chatBuddyName}
+                            jsonUserData = json.dumps(userMessage).encode('utf8')
+                            s.sendall(jsonUserData)
+                            serverResponse = s.recv(1024).decode('utf8')
+                            print(serverResponse)
+                            continue
+                        if "/file:" in message:
+                            try:
+                                fileName = message.partition("/file:")[2]
+                            except:
+                                print(colored("File with this name not found","red"))
+                                continue
+                            text_read = ""
 
-                        userMessage = {"action":"Send message","Sender":currentUserName,"Receiver":chatBuddyName,"data":time.ctime(),"message":message}
+                            with open(fileName, "rb") as file_object:
+                                text_read = file_object.read()
+                                text_read = text_read.decode('utf8')
+                            
+                            userMessage = {ConstantStrings.actionKey:ConstantStrings.requestSendFile,ConstantStrings.senderKey:currentUserName,ConstantStrings.receiverKey:chatBuddyName,ConstantStrings.dataKey:time.ctime(),ConstantStrings.fileNameKey:fileName,ConstantStrings.textKey:text_read}
+                            jsonUserData = json.dumps(userMessage).encode('utf8')
+
+                            s.sendall(jsonUserData)
+                            continue
+                        if "/open:" in message:
+                            try:
+                                fileName = message.partition("/open:")[2]
+                            except:
+                                print(colored("File with this name not found","red"))
+                                continue
+                            userMessage = {ConstantStrings.actionKey:ConstantStrings.requestOpenFile,ConstantStrings.fileNameKey:fileName}
+                            jsonUserData = json.dumps(userMessage).encode('utf8')
+                            s.sendall(jsonUserData)
+                            serverResponse = s.recv(1024).decode('utf8')
+                            print(serverResponse)
+                            continue
+
+                        userMessage = {ConstantStrings.actionKey:ConstantStrings.requestSendMessage,ConstantStrings.senderKey:currentUserName,ConstantStrings.receiverKey:chatBuddyName,ConstantStrings.dataKey:time.ctime(),ConstantStrings.messageKey:message}
                         jsonUserData = json.dumps(userMessage).encode('utf8')
                         s.sendall(jsonUserData)
                         serverResponse = s.recv(1024).decode('utf8')
+
+
                         
-                        if serverResponse == "Message was send":
-                            print("                                     %s(%s):%s\n" % (currentUserName,time.ctime(),message)[::-1])
-                        else:
-                            print(serverResponse)
-
-
-
-
-
+                        #if serverResponse == "Message was send":
+                        #    print("                                     %s(%s):%s\n" % (currentUserName,time.ctime(),message)[::-1])
+                        #else:
+                        #    print(serverResponse)
 
         
         else:
-            print(unknownCommandString)
+            print(colored(unknownCommandString,"red"))
 
 def login():
-    print("-------Login-------")
+    print(colored("-------Login-------","magenta"))
 
     while True:
         nameLogin = input(">>Name:")
@@ -168,56 +222,56 @@ def login():
         #portInput = input("Port:")
 
         if nameLogin == helpString or password == helpString:
-            print(allCommandsString)
+            print(colored(allCommandsString,"cyan"))
         elif nameLogin == backString or password == backString:
-            print("-------Back to start page-------")
+            print(colored("-------Back to start page-------","magenta"))
             main()
 
-        userData = {"action":"login","name":nameLogin,"password":password,"ip":ip,"port":port}
+        userData = {ConstantStrings.actionKey:ConstantStrings.loginAction,ConstantStrings.nameKey:nameLogin,ConstantStrings.passwordKey:password,ConstantStrings.ipKey:ip,ConstantStrings.portKey:port}
         jsonUserData = json.dumps(userData).encode('utf8')
         s.sendall(jsonUserData)
         serverResponse = s.recv(1024).decode('utf8')
         print(serverResponse)
 
-        if serverResponse == "Success login":
+        if serverResponse == ConstantStrings.successLoginServerAnswer:
             global name
             name = nameLogin
             atexit.register(onExitApp,name) # to set online 0 when application was exited
             mainInterface(nameLogin)
             break
 
-        elif serverResponse == "Error login":
-            print("Name or password is wrong")
+        elif serverResponse == ConstantStrings.failureLoginServerAnswer:
+            print(colored("Name or password is wrong","red"))
 
 
 def register():
-    print("-------Register-------")
+    print(colored("-------Register-------","magenta"))
 
     while True:
         name = input(">>Name:")
         password = getpass.getpass('>>Password:')
 
         if name == helpString or password == helpString:
-            print(allCommandsString)
+            print(colored(allCommandsString,"cyan"))
         elif name == backString or password == backString:
-            print("-------Back to start page-------")
+            print(colored("-------Back to start page-------","magenta"))
             main()
             break
 
-        userData = {"action":"register","name":name,"password":password}
+        userData = {ConstantStrings.actionKey:ConstantStrings.registerAction,ConstantStrings.nameKey:name,ConstantStrings.passwordKey:password}
         jsonUserData = json.dumps(userData).encode('utf8')
         s.sendall(jsonUserData)
         serverResponse = s.recv(1024).decode('utf8')
         print(serverResponse)
 
-        if serverResponse == "Success register":
+        if serverResponse == ConstantStrings.successRegisterServerAnswer:
             login()
             break
-        elif serverResponse == "Error register":
-            print("This name is busy, use another one")
+        elif serverResponse == ConstantStrings.failureRegisterServerAnswer:
+            print(colored("This name is busy, use another one","red"))
 
 def onExitApp(userName):
-    print("-------Exiting-------")
+    print(colored("-------Exiting-------","magenta"))
     logout(userName)
 
 
@@ -236,11 +290,9 @@ def main():
             register()
             break
         elif userLoginRegisterInput == helpString:
-            print(allCommandsString)
+            print(colored(allCommandsString,"cyan"))
         else:
             print("Write only 1 or 2")
-
-
 
 
 if __name__ == '__main__':
@@ -253,10 +305,15 @@ if __name__ == '__main__':
     backString = "/back"
     unknownCommandString = "Unknown command, use /help to see all available commands"
 
+    SEPARATOR = "<SEPARATOR>"
+    BUFFER_SIZE = 4096
+
     s = socket.socket()
     try:
         s.connect(('',8888))
     except socket.error as error:
         print("Socket connection error:%s" %(str(error)))
 
-    main()
+    write_thread = threading.Thread(target=main)
+    write_thread.start()
+    #main()
