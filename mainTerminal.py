@@ -300,7 +300,7 @@ def onExitApp(userName):
 
 def main():
     print(colored(figlet_format("Messenger"),"magenta"))
-    print(colored("------------------------------------------------------------------\nMessenger - python TCP chat script using socket server,all data stores at SQLite\nAt first u need to start SocketServer.py and then at another terminal start mainTerminal.py file how many like u wanna create clients,it depends of you,but socket server limit is 10 clients,however u can rewrite it in code at anytime\nIf u prefer GUI,after launch socket server, start welcomePage.py file\nUse /help to show all commands\n------------------------------------------------------------------","white"))
+    print(colored("------------------------------------------------------------------\nMessenger - python TCP chat script using socket server,all data stores at SQLite\nAt first u need to start SocketServer.py and then at another terminal start mainTerminal.py file how many like u wanna create clients,it depends of you,but socket server limit is 10 clients,however u can rewrite it in code at anytime\nAll communication between server and client encrypted by RSA\nIf u prefer GUI,after launch socket server, start welcomePage.py file\nUse /help to show all commands\n------------------------------------------------------------------","white"))
     print("1-Login\n2-Register")
 
     while True:
@@ -327,9 +327,6 @@ if __name__ == '__main__':
     logoutString = "/logout"
     backString = "/back"
     unknownCommandString = "Unknown command, use /help to see all available commands"
-
-    SEPARATOR = "<SEPARATOR>"
-    BUFFER_SIZE = 4096
 
     print(colored("Genereting asymmetric key...","yellow"))
 
