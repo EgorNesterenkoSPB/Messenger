@@ -9,6 +9,7 @@ import hashlib
 import rsa
 import pickle
 from cryptography.fernet import Fernet
+from termcolor import colored
 
 
 
@@ -31,7 +32,7 @@ s.listen(10)
 #//TODO: Set up client and get data
 
 def threaded_client(connection):
-    jsonUserData = b'' # for convert data from client to json
+    jsonUserData = '' # for convert data from client to json
 
     #//TODO: Create database
 
@@ -87,8 +88,15 @@ def threaded_client(connection):
 
     while True:
         data = connection.recv(2048)
+        print("before decrypt %s" %(data))
+
+        global f
+
+        data = f.decrypt(data).decode('utf8')
+
+        print("ater decrypt %s" %(data))
         jsonUserData += data
-        userData = json.loads(jsonUserData.decode('utf8'))
+        userData = json.loads(jsonUserData)
         print(userData)
 
         if userData[ConstantStrings.actionKey] == ConstantStrings.registerAction:  # register user
@@ -103,11 +111,11 @@ def threaded_client(connection):
                 conn.commit()
                 conn.close()
 
-                connection.sendall(ConstantStrings.successRegisterServerAnswer.encode('utf8')) # to send bytes
+                connection.sendall(f.encrypt(ConstantStrings.successRegisterServerAnswer.encode('utf8'))) # to send bytes
             else:
                 for user in users:
                     if user[0] == userData[ConstantStrings.nameKey]:
-                        connection.sendall(ConstantStrings.failureRegisterServerAnswer.encode('utf8'))
+                        connection.sendall(f.encrypt(ConstantStrings.failureRegisterServerAnswer.encode('utf8')))
                         break
                     else:
                         conn = sqlite3.connect(ConstantStrings.databaseUserName)
@@ -117,7 +125,7 @@ def threaded_client(connection):
                         cur.close()
                         conn.commit()
                         conn.close()
-                        connection.sendall(ConstantStrings.successRegisterServerAnswer.encode('utf8'))
+                        connection.sendall(f.encrypt(ConstantStrings.successRegisterServerAnswer.encode('utf8')))
                         break
                         
 
@@ -126,7 +134,7 @@ def threaded_client(connection):
             if len(results) != 0:
                 for user in results:
                     if user[0] == userData[ConstantStrings.nameKey] and user[1] == userData[ConstantStrings.passwordKey]:
-                        connection.sendall(ConstantStrings.successLoginServerAnswer.encode('utf8'))
+                        connection.sendall(f.encrypt(ConstantStrings.successLoginServerAnswer.encode('utf8')))
 
                         conn = sqlite3.connect(ConstantStrings.databaseUserName)
                         cur = conn.cursor()
@@ -143,9 +151,9 @@ def threaded_client(connection):
                         break
                     else:
                         if user == results[len(results)-1]:
-                            connection.sendall(ConstantStrings.failureLoginServerAnswer.encode('utf8'))
+                            connection.sendall(f.encrypt(ConstantStrings.failureLoginServerAnswer.encode('utf8')))
             else:
-                connection.sendall(ConstantStrings.failureLoginServerAnswer.encode('utf8'))
+                connection.sendall(f.encrypt(ConstantStrings.failureLoginServerAnswer.encode('utf8')))
         
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestOnlineUsers:
             results = fetchAllUsers()
@@ -153,7 +161,7 @@ def threaded_client(connection):
             for user in results:
                 if user[4] == 1:
                     usersName += "%s\n" % user[0]
-            connection.sendall(usersName.encode('utf8'))
+            connection.sendall(f.encrypt(usersName.encode('utf8')))
 
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestSetOnline:
             
@@ -180,32 +188,32 @@ def threaded_client(connection):
                 for user in result:
                     if user[0] == userData[ConstantStrings.nameKey]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        connection.sendall(userInfo.encode('utf8'))
+                        connection.sendall(f.encrypt(userInfo.encode('utf8')))
                         break
                     else:
                         if user == result[len(result)-1]:
-                            connection.sendall("No user with this name".encode('utf8'))
+                            connection.sendall(f.encrypt("No user with this name".encode('utf8')))
 
             elif ConstantStrings.ipKey in userData and userData.get(ConstantStrings.nameKey) is None:
                 for user in result:
                     if user[2] == userData[ConstantStrings.ipKey]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        connection.sendall(userInfo.encode('utf8'))
+                        connection.sendall(f.encrypt(userInfo.encode('utf8')))
                         break
                     else:
                         if user == result[len(result)-1]:
-                            connection.sendall("User with this ip not found".encode('utf8'))
+                            connection.sendall(f.encrypt("User with this ip not found".encode('utf8')))
             elif ConstantStrings.nameKey in userData and ConstantStrings.ipKey in userData:
                 for user in result:
                     if user[0] == userData[ConstantStrings.nameKey] and user[2] == userData[ConstantStrings.ipKey]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        connection.sendall(userInfo.encode('utf8'))
+                        connection.sendall(f.encrypt(userInfo.encode('utf8')))
                         break
                     else:
                         if user == result[len(result)-1]:
-                            connection.sendall(ConstantStrings.failureSearchUserServerAnswer.encode('utf8'))
+                            connection.sendall(f.encrypt(ConstantStrings.failureSearchUserServerAnswer.encode('utf8')))
             else:
-                connection.sendall(ConstantStrings.failureSearchUserServerAnswer.encode('utf8'))
+                connection.sendall(f.encrypt(ConstantStrings.failureSearchUserServerAnswer.encode('utf8')))
 
         #//TODO: Console command handle
 
@@ -216,7 +224,7 @@ def threaded_client(connection):
             for user in result:
                 if userData[ConstantStrings.nameKey] == user[0]:
                     userInfo = "Name: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                    connection.sendall(userInfo.encode('utf8'))
+                    connection.sendall(f.encrypt(userInfo.encode('utf8')))
                     break
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestSearchUserTerminal:
             result = fetchAllUsers()
@@ -225,20 +233,20 @@ def threaded_client(connection):
                 for user in result:
                         if user[0] == userData[ConstantStrings.nameKey]:
                             userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                            connection.sendall(userInfo.encode('utf8'))
+                            connection.sendall(f.encrypt(userInfo.encode('utf8')))
                             break
                         else:
                             if user == result[len(result)-1]:
-                                connection.sendall("No user with this name".encode('utf8'))
+                                connection.sendall(f.encrypt("No user with this name".encode('utf8')))
             elif ConstantStrings.ipKey in userData and userData.get(ConstantStrings.nameKey) is None:
                 for user in result:
                         if user[2] == userData[ConstantStrings.ipKey]:
                             userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                            connection.sendall(userInfo.encode('utf8'))
+                            connection.sendall(f.encrypt(userInfo.encode('utf8')))
                             break
                         else:
                             if user == result[len(result)-1]:
-                                connection.sendall("No user with this ip".encode('utf8'))
+                                connection.sendall(f.encrypt("No user with this ip".encode('utf8')))
 
             
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestChatConnect:
@@ -255,14 +263,14 @@ def threaded_client(connection):
                             elif chat[1] == userData[ConstantStrings.nameKey]:
                                 currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
                         sendData = "Successful connection\n%s" % (currentChat)
-                        connection.sendall(sendData.encode('utf8'))
+                        connection.sendall(f.encrypt(sendData.encode('utf8')))
                         break
                     else:
-                        connection.sendall("User isnt online".encode('utf8'))
+                        connection.sendall(f.encrypt("User isnt online".encode('utf8')))
                         break
                 else:
                     if user == result[len(result)-1]:
-                        connection.sendall("User with this name not found".encode('utf8'))
+                        connection.sendall(f.encrypt("User with this name not found".encode('utf8')))
         
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestUpdateChat:
             chats = fetchAllChats()
@@ -273,7 +281,7 @@ def threaded_client(connection):
                     currentChat += "                                        %s(%s):%s\n" % (chat[0],chat[2],chat[3])[::-1]
                 elif chat[1] == userData[ConstantStrings.nameKey]:
                     currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
-            connection.sendall(currentChat.encode('utf8'))
+            connection.sendall(f.encrypt(currentChat.encode('utf8')))
             
             
 
@@ -286,9 +294,9 @@ def threaded_client(connection):
                 cur.close()
                 conn.commit()
                 conn.close()
-                connection.sendall("Upload chat\n".encode('utf8'))
+                connection.sendall(f.encrypt("Upload chat\n".encode('utf8')))
             except:
-                connection.sendall("Error sending message".encode('utf8'))
+                connection.sendall(f.encrypt("Error sending message".encode('utf8')))
             
             #users = fetchAllUsers()
 
@@ -301,13 +309,13 @@ def threaded_client(connection):
             filename = os.path.basename(userData[ConstantStrings.fileNameKey]) # remove path if there is
             text = ""
 
-            with open("Server_%s" % (filename),"wb") as f:
+            with open("Server_%s" % (filename),"wb") as file:
                 text = userData[ConstantStrings.textKey]
                 text = text.encode('utf8')
                 if not text:
                     break
                 
-                f.write(text)
+                file.write(text)
 
                 conn = sqlite3.connect(ConstantStrings.databaseUserName)
                 cur = conn.cursor()
@@ -315,14 +323,14 @@ def threaded_client(connection):
                 cur.close()
                 conn.commit()
                 conn.close()
-                connection.sendall("Upload chat\n".encode('utf8'))
+                connection.sendall(f.encrypt("Upload chat\n".encode('utf8')))
         if  userData[ConstantStrings.actionKey] == ConstantStrings.requestOpenFile:
             filename = userData[ConstantStrings.fileNameKey]
             text = ""
 
-            with open("Server_%s" % (filename),"rb") as f:
-                text = f.read()
-            connection.sendall(text)
+            with open("Server_%s" % (filename),"rb") as file:
+                text = file.read()
+            connection.sendall(f.encrypt(text))
 
             #chats = fetchAllChats()
 
@@ -330,7 +338,7 @@ def threaded_client(connection):
 
             #if lastMessage[0] == userData["Sender"]:
 
-        jsonUserData = b''
+        jsonUserData = ''
 
         if not data:
             break
@@ -344,7 +352,7 @@ while True:
     # Accept the public key passed by the client
     publicKeyPK, pubKeySha256 = pickle.loads(connection.recv(1024))
     if hashlib.sha256(publicKeyPK).hexdigest() != pubKeySha256:
-        print("Hash client and server arent equal,response from server")
+        print(colored("Hash client and server arent equal,response from server","red"))
     else:
         publicKey = pickle.loads(publicKeyPK)
         print("Accepted public key")

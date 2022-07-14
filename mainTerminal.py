@@ -17,8 +17,9 @@ from cryptography.fernet import Fernet
 
 def logout(userName):
     setOffineData = {ConstantStrings.actionKey:ConstantStrings.requestSetOnline,ConstantStrings.nameKey:userName,ConstantStrings.onlineKey:0} # to set 0 in db when application is closed and the user is offline
-    jsonUserData = json.dumps(setOffineData).encode('utf8')
-    s.sendall(jsonUserData)
+    jsonUserData = json.dumps(setOffineData)
+    global f
+    s.sendall(f.encrypt(jsonUserData.encode('utf8')))
 
 def mainInterface(currentUserName):
     print(colored("-------Main page-------","magenta"))
@@ -39,15 +40,19 @@ def mainInterface(currentUserName):
             print(colored("You cant come back to previous stage, write /logout to finish this session","red"))
         elif userCommand == "/info":
             userData = {ConstantStrings.actionKey:ConstantStrings.requestUserInfo,ConstantStrings.nameKey:currentUserName}
-            jsonUserData = json.dumps(userData).encode('utf8')
-            s.sendall(jsonUserData)
-            serverResponse = s.recv(1024).decode('utf8')
+            jsonUserData = json.dumps(userData)
+            global f
+            s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+            serverResponse = s.recv(1024)
+            serverResponse = f.decrypt(serverResponse).decode('utf8')
             print(serverResponse)
         elif userCommand == "/online":
             userData = {ConstantStrings.actionKey:ConstantStrings.requestOnlineUsers}
-            jsonUserData = json.dumps(userData).encode('utf8')
-            s.sendall(jsonUserData)
-            serverResponse = s.recv(1024).decode('utf8')
+            jsonUserData = json.dumps(userData)
+
+            s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+            serverResponse = s.recv(1024)
+            serverResponse = f.decrypt(serverResponse).decode('utf8')
             print("Online users:\n%s"%(serverResponse))
         elif userCommand == "/search":
             print(colored("-------Searching user-------","magenta"))
@@ -101,9 +106,11 @@ def mainInterface(currentUserName):
 
                 userData = {ConstantStrings.actionKey:ConstantStrings.requestSearchUserTerminal,ConstantStrings.nameKey:searchName}
 
-                jsonUserData = json.dumps(userData).encode('utf8')
-                s.sendall(jsonUserData)
-                serverResponse = s.recv(1024).decode('utf8')
+                jsonUserData = json.dumps(userData)
+
+                s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+                serverResponse = s.recv(1024)
+                serverResponse = f.decrypt(serverResponse).decode('utf8')
                 print(serverResponse)
         elif userCommand == "/chat":
             print(colored("-------Chat-------","magenta"))
@@ -125,9 +132,11 @@ def mainInterface(currentUserName):
                     continue
 
                 userData = {ConstantStrings.actionKey:ConstantStrings.requestChatConnect,ConstantStrings.nameKey:currentUserName,ConstantStrings.chatBuddyNameKey:chatBuddyName}
-                jsonUserData = json.dumps(userData).encode('utf8')
-                s.sendall(jsonUserData)
-                serverResponse = s.recv(1024).decode('utf8')
+                jsonUserData = json.dumps(userData)
+
+                s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+                serverResponse = s.recv(1024)
+                serverResponse = f.decrypt(serverResponse).decode('utf8')
                 print(serverResponse)
                 serverResponseArray = serverResponse.split('\n')
 
@@ -157,9 +166,11 @@ def mainInterface(currentUserName):
                             break
                         if message == "/update":
                             userMessage = {ConstantStrings.actionKey:ConstantStrings.requestUpdateChat,ConstantStrings.nameKey:currentUserName,ConstantStrings.chatBuddyNameKey:chatBuddyName}
-                            jsonUserData = json.dumps(userMessage).encode('utf8')
-                            s.sendall(jsonUserData)
-                            serverResponse = s.recv(1024).decode('utf8')
+                            jsonUserData = json.dumps(userMessage)
+
+                            s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+                            serverResponse = s.recv(1024)
+                            serverResponse = f.decrypt(serverResponse).decode('utf8')
                             print(serverResponse)
                             continue
                         if "/file:" in message:
@@ -175,9 +186,10 @@ def mainInterface(currentUserName):
                                 text_read = text_read.decode('utf8')
                             
                             userMessage = {ConstantStrings.actionKey:ConstantStrings.requestSendFile,ConstantStrings.senderKey:currentUserName,ConstantStrings.receiverKey:chatBuddyName,ConstantStrings.dataKey:time.ctime(),ConstantStrings.fileNameKey:fileName,ConstantStrings.textKey:text_read}
-                            jsonUserData = json.dumps(userMessage).encode('utf8')
+                            jsonUserData = json.dumps(userMessage)
 
-                            s.sendall(jsonUserData)
+
+                            s.sendall(f.encrypt(jsonUserData.encode('utf8')))
                             continue
                         if "/open:" in message:
                             try:
@@ -186,16 +198,22 @@ def mainInterface(currentUserName):
                                 print(colored("File with this name not found","red"))
                                 continue
                             userMessage = {ConstantStrings.actionKey:ConstantStrings.requestOpenFile,ConstantStrings.fileNameKey:fileName}
-                            jsonUserData = json.dumps(userMessage).encode('utf8')
-                            s.sendall(jsonUserData)
-                            serverResponse = s.recv(1024).decode('utf8')
+                            jsonUserData = json.dumps(userMessage)
+
+
+                            s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+                            serverResponse = s.recv(1024)
+                            serverResponse = f.decrypt(serverResponse).decode('utf8')
                             print(serverResponse)
                             continue
 
+
                         userMessage = {ConstantStrings.actionKey:ConstantStrings.requestSendMessage,ConstantStrings.senderKey:currentUserName,ConstantStrings.receiverKey:chatBuddyName,ConstantStrings.dataKey:time.ctime(),ConstantStrings.messageKey:message}
-                        jsonUserData = json.dumps(userMessage).encode('utf8')
-                        s.sendall(jsonUserData)
-                        serverResponse = s.recv(1024).decode('utf8')
+                        jsonUserData = json.dumps(userMessage)
+
+                        s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+                        serverResponse = s.recv(1024)
+                        serverResponse = f.decrypt(serverResponse).decode('utf8')
 
 
                         
@@ -226,10 +244,13 @@ def login():
             print(colored("-------Back to start page-------","magenta"))
             main()
 
+        global f
+
         userData = {ConstantStrings.actionKey:ConstantStrings.loginAction,ConstantStrings.nameKey:nameLogin,ConstantStrings.passwordKey:password,ConstantStrings.ipKey:ip,ConstantStrings.portKey:port}
-        jsonUserData = json.dumps(userData).encode('utf8')
-        s.sendall(jsonUserData)
-        serverResponse = s.recv(1024).decode('utf8')
+        jsonUserData = json.dumps(userData)
+        s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+        serverResponse = s.recv(1024)
+        serverResponse = f.decrypt(serverResponse).decode('utf8')
         print(serverResponse)
 
         if serverResponse == ConstantStrings.successLoginServerAnswer:
@@ -258,9 +279,12 @@ def register():
             break
 
         userData = {ConstantStrings.actionKey:ConstantStrings.registerAction,ConstantStrings.nameKey:name,ConstantStrings.passwordKey:password}
-        jsonUserData = json.dumps(userData).encode('utf8')
-        s.sendall(jsonUserData)
-        serverResponse = s.recv(1024).decode('utf8')
+        jsonUserData = json.dumps(userData)
+
+        global f
+        s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+        serverResponse = s.recv(1024)
+        serverResponse = f.decrypt(serverResponse).decode('utf8')
         print(serverResponse)
 
         if serverResponse == ConstantStrings.successRegisterServerAnswer:
@@ -307,7 +331,7 @@ if __name__ == '__main__':
     SEPARATOR = "<SEPARATOR>"
     BUFFER_SIZE = 4096
 
-    print("Genereting asymmetric key...")
+    print(colored("Genereting asymmetric key...","yellow"))
 
     # generate asymmetric key
     asyKey = rsa.newkeys(2048)
@@ -330,15 +354,14 @@ if __name__ == '__main__':
     symKey,symKeySha256 = pickle.loads(s.recv(1024))
 
     if hashlib.sha256(symKey).hexdigest() != symKeySha256:
-        print("Client hash and server arent equeal, response from client")
+        print(colored("Client hash and server arent equeal, response from client","red"))
     else:
         symKey = pickle.loads(rsa.decrypt(symKey,privateKay))
         
         # Initialize the encrypted object
         f = Fernet(symKey)
 
-        print("Generation was successfuly end")
-
+        print(colored("Generation was successfuly end","yellow"))
 
         write_thread = threading.Thread(target=main)
         write_thread.start()
