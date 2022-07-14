@@ -5,9 +5,18 @@ import os
 from _thread import *
 import threading
 import ConstantStrings
+import hashlib
+import rsa
+import pickle
+from cryptography.fernet import Fernet
+
+
 
 clients = set()
 clientsLock = threading.Lock()
+
+def Padding(s):
+    return s + ((16 - len(s) % 16) * '`')
 
 #//TODO: Create and socket server
 
@@ -331,6 +340,28 @@ def threaded_client(connection):
 
 while True:
     connection,addr = s.accept()
+
+    # Accept the public key passed by the client
+    publicKeyPK, pubKeySha256 = pickle.loads(connection.recv(1024))
+    if hashlib.sha256(publicKeyPK).hexdigest() != pubKeySha256:
+        print("Hash client and server arent equal,response from server")
+    else:
+        publicKey = pickle.loads(publicKeyPK)
+        print("Accepted public key")
+    
+    #encrypting and passing a symmetric key with a public key.
+    #Generate a key for symmetric encryption
+    symKey = Fernet.generate_key()
+    encryptedSymKey = rsa.encrypt(pickle.dumps(symKey),publicKey)
+    encryptedSymKeySha256 = hashlib.sha256(encryptedSymKey).hexdigest()
+
+    connection.sendall(pickle.dumps((encryptedSymKey,encryptedSymKeySha256)))
+
+    # Initialize the encrypted object
+    f = Fernet(symKey)
+
+
+
     clients.add(connection)
     start_new_thread(threaded_client,(connection,))
 s.close()

@@ -1,7 +1,3 @@
-from ast import In
-from glob import glob
-import this
-from tracemalloc import start
 from pyfiglet import figlet_format
 import getpass
 import socket
@@ -11,8 +7,11 @@ import time
 from termcolor import colored
 import threading
 from _thread import *
-import os
 import ConstantStrings
+import hashlib
+import rsa
+import pickle
+from cryptography.fernet import Fernet
 
 
 
@@ -308,12 +307,39 @@ if __name__ == '__main__':
     SEPARATOR = "<SEPARATOR>"
     BUFFER_SIZE = 4096
 
+    print("Genereting asymmetric key...")
+
+    # generate asymmetric key
+    asyKey = rsa.newkeys(2048)
+    publicKey = asyKey[0]
+    privateKay = asyKey[1]
+
     s = socket.socket()
     try:
         s.connect(('',8888))
     except socket.error as error:
         print("Socket connection error:%s" %(str(error)))
 
-    write_thread = threading.Thread(target=main)
-    write_thread.start()
-    #main()
+
+    # Pass the public key to the server, and the sha256
+    sendKey = pickle.dumps(publicKey)
+    sendKeySha256 = hashlib.sha256(sendKey).hexdigest()
+    s.sendall(pickle.dumps((sendKey,sendKeySha256)))
+
+    # Accept the key passed by the server and decrypt it
+    symKey,symKeySha256 = pickle.loads(s.recv(1024))
+
+    if hashlib.sha256(symKey).hexdigest() != symKeySha256:
+        print("Client hash and server arent equeal, response from client")
+    else:
+        symKey = pickle.loads(rsa.decrypt(symKey,privateKay))
+        
+        # Initialize the encrypted object
+        f = Fernet(symKey)
+
+        print("Generation was successfuly end")
+
+
+        write_thread = threading.Thread(target=main)
+        write_thread.start()
+        #main()
