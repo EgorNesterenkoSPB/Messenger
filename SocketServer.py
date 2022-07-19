@@ -12,9 +12,8 @@ from cryptography.fernet import Fernet
 from termcolor import colored
 
 
+connectionsSymmetricKeys = {}
 
-clients = set()
-clientsLock = threading.Lock()
 
 def Padding(s):
     return s + ((16 - len(s) % 16) * '`')
@@ -53,7 +52,8 @@ def threaded_client(connection):
         port TEXT,
         online INT,
         connection TEXT,
-        isWaitingRequest INT); 
+        isWaitingRequest INT,
+        currentSymmetricKey TEXT); 
         """)
     cur.close()
     conn.commit()
@@ -90,9 +90,11 @@ def threaded_client(connection):
         data = connection.recv(2048)
         print("before decrypt %s" %(data))
 
-        global f
+        currentSymmetricKey = connectionsSymmetricKeys[connection]
 
-        data = f.decrypt(data).decode('utf8')
+        #global f
+
+        data = currentSymmetricKey.decrypt(data).decode('utf8')
 
         print("ater decrypt %s" %(data))
         jsonUserData += data
@@ -111,11 +113,11 @@ def threaded_client(connection):
                 conn.commit()
                 conn.close()
 
-                connection.sendall(f.encrypt(ConstantStrings.successRegisterServerAnswer.encode('utf8'))) # to send bytes
+                connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.successRegisterServerAnswer.encode('utf8'))) # to send bytes
             else:
                 for user in users:
                     if user[0] == userData[ConstantStrings.nameKey]:
-                        connection.sendall(f.encrypt(ConstantStrings.failureRegisterServerAnswer.encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.failureRegisterServerAnswer.encode('utf8')))
                         break
                     else:
                         conn = sqlite3.connect(ConstantStrings.databaseUserName)
@@ -125,7 +127,7 @@ def threaded_client(connection):
                         cur.close()
                         conn.commit()
                         conn.close()
-                        connection.sendall(f.encrypt(ConstantStrings.successRegisterServerAnswer.encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.successRegisterServerAnswer.encode('utf8')))
                         break
                         
 
@@ -134,7 +136,7 @@ def threaded_client(connection):
             if len(results) != 0:
                 for user in results:
                     if user[0] == userData[ConstantStrings.nameKey] and user[1] == userData[ConstantStrings.passwordKey]:
-                        connection.sendall(f.encrypt(ConstantStrings.successLoginServerAnswer.encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.successLoginServerAnswer.encode('utf8')))
 
                         conn = sqlite3.connect(ConstantStrings.databaseUserName)
                         cur = conn.cursor()
@@ -151,9 +153,9 @@ def threaded_client(connection):
                         break
                     else:
                         if user == results[len(results)-1]:
-                            connection.sendall(f.encrypt(ConstantStrings.failureLoginServerAnswer.encode('utf8')))
+                            connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.failureLoginServerAnswer.encode('utf8')))
             else:
-                connection.sendall(f.encrypt(ConstantStrings.failureLoginServerAnswer.encode('utf8')))
+                connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.failureLoginServerAnswer.encode('utf8')))
         
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestOnlineUsers:
             results = fetchAllUsers()
@@ -161,7 +163,7 @@ def threaded_client(connection):
             for user in results:
                 if user[4] == 1:
                     usersName += "%s\n" % user[0]
-            connection.sendall(f.encrypt(usersName.encode('utf8')))
+            connection.sendall(currentSymmetricKey.encrypt(usersName.encode('utf8')))
 
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestSetOnline:
             
@@ -188,32 +190,32 @@ def threaded_client(connection):
                 for user in result:
                     if user[0] == userData[ConstantStrings.nameKey]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        connection.sendall(f.encrypt(userInfo.encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt(userInfo.encode('utf8')))
                         break
                     else:
                         if user == result[len(result)-1]:
-                            connection.sendall(f.encrypt("No user with this name".encode('utf8')))
+                            connection.sendall(currentSymmetricKey.encrypt("No user with this name".encode('utf8')))
 
             elif ConstantStrings.ipKey in userData and userData.get(ConstantStrings.nameKey) is None:
                 for user in result:
                     if user[2] == userData[ConstantStrings.ipKey]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        connection.sendall(f.encrypt(userInfo.encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt(userInfo.encode('utf8')))
                         break
                     else:
                         if user == result[len(result)-1]:
-                            connection.sendall(f.encrypt("User with this ip not found".encode('utf8')))
+                            connection.sendall(currentSymmetricKey.encrypt("User with this ip not found".encode('utf8')))
             elif ConstantStrings.nameKey in userData and ConstantStrings.ipKey in userData:
                 for user in result:
                     if user[0] == userData[ConstantStrings.nameKey] and user[2] == userData[ConstantStrings.ipKey]:
                         userInfo = "Online: %s,Port: %s,IP: %s,Name: %s" % (user[4],user[3],user[2],user[0])
-                        connection.sendall(f.encrypt(userInfo.encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt(userInfo.encode('utf8')))
                         break
                     else:
                         if user == result[len(result)-1]:
-                            connection.sendall(f.encrypt(ConstantStrings.failureSearchUserServerAnswer.encode('utf8')))
+                            connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.failureSearchUserServerAnswer.encode('utf8')))
             else:
-                connection.sendall(f.encrypt(ConstantStrings.failureSearchUserServerAnswer.encode('utf8')))
+                connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.failureSearchUserServerAnswer.encode('utf8')))
 
         #//TODO: Console command handle
 
@@ -224,7 +226,7 @@ def threaded_client(connection):
             for user in result:
                 if userData[ConstantStrings.nameKey] == user[0]:
                     userInfo = "Name: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                    connection.sendall(f.encrypt(userInfo.encode('utf8')))
+                    connection.sendall(currentSymmetricKey.encrypt(userInfo.encode('utf8')))
                     break
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestSearchUserTerminal:
             result = fetchAllUsers()
@@ -233,20 +235,20 @@ def threaded_client(connection):
                 for user in result:
                         if user[0] == userData[ConstantStrings.nameKey]:
                             userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                            connection.sendall(f.encrypt(userInfo.encode('utf8')))
+                            connection.sendall(currentSymmetricKey.encrypt(userInfo.encode('utf8')))
                             break
                         else:
                             if user == result[len(result)-1]:
-                                connection.sendall(f.encrypt("No user with this name".encode('utf8')))
+                                connection.sendall(currentSymmetricKey.encrypt("No user with this name".encode('utf8')))
             elif ConstantStrings.ipKey in userData and userData.get(ConstantStrings.nameKey) is None:
                 for user in result:
                         if user[2] == userData[ConstantStrings.ipKey]:
                             userInfo = "-------------\nName: %s\nIP: %s\nPort: %s\nOnline: %s" % (user[0],user[2],user[3],user[4])
-                            connection.sendall(f.encrypt(userInfo.encode('utf8')))
+                            connection.sendall(currentSymmetricKey.encrypt(userInfo.encode('utf8')))
                             break
                         else:
                             if user == result[len(result)-1]:
-                                connection.sendall(f.encrypt("No user with this ip".encode('utf8')))
+                                connection.sendall(currentSymmetricKey.encrypt("No user with this ip".encode('utf8')))
 
             
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestChatConnect:
@@ -263,14 +265,14 @@ def threaded_client(connection):
                             elif chat[1] == userData[ConstantStrings.nameKey]:
                                 currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
                         sendData = "Successful connection\n%s" % (currentChat)
-                        connection.sendall(f.encrypt(sendData.encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt(sendData.encode('utf8')))
                         break
                     else:
-                        connection.sendall(f.encrypt("User isnt online".encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt("User isnt online".encode('utf8')))
                         break
                 else:
                     if user == result[len(result)-1]:
-                        connection.sendall(f.encrypt("User with this name not found".encode('utf8')))
+                        connection.sendall(currentSymmetricKey.encrypt("User with this name not found".encode('utf8')))
         
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestUpdateChat:
             chats = fetchAllChats()
@@ -281,7 +283,7 @@ def threaded_client(connection):
                     currentChat += "                                        %s(%s):%s\n" % (chat[0],chat[2],chat[3])[::-1]
                 elif chat[1] == userData[ConstantStrings.nameKey]:
                     currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
-            connection.sendall(f.encrypt(currentChat.encode('utf8')))
+            connection.sendall(currentSymmetricKey.encrypt(currentChat.encode('utf8')))
             
             
 
@@ -294,9 +296,9 @@ def threaded_client(connection):
                 cur.close()
                 conn.commit()
                 conn.close()
-                connection.sendall(f.encrypt("Upload chat\n".encode('utf8')))
+                connection.sendall(currentSymmetricKey.encrypt("Upload chat\n".encode('utf8')))
             except:
-                connection.sendall(f.encrypt("Error sending message".encode('utf8')))
+                connection.sendall(currentSymmetricKey.encrypt("Error sending message".encode('utf8')))
             
             #users = fetchAllUsers()
 
@@ -323,14 +325,14 @@ def threaded_client(connection):
                 cur.close()
                 conn.commit()
                 conn.close()
-                connection.sendall(f.encrypt("Upload chat\n".encode('utf8')))
+                connection.sendall(currentSymmetricKey.encrypt("Upload chat\n".encode('utf8')))
         if  userData[ConstantStrings.actionKey] == ConstantStrings.requestOpenFile:
             filename = userData[ConstantStrings.fileNameKey]
             text = ""
 
             with open("Server_%s" % (filename),"rb") as file:
                 text = file.read()
-            connection.sendall(f.encrypt(text))
+            connection.sendall(currentSymmetricKey.encrypt(text))
 
             #chats = fetchAllChats()
 
@@ -368,9 +370,12 @@ while True:
     # Initialize the encrypted object
     f = Fernet(symKey)
 
+    #store current session user symmetric key 
+    connectionsSymmetricKeys[connection] = f
 
 
-    clients.add(connection)
+
+    #clients.add(connection)
     start_new_thread(threaded_client,(connection,))
 s.close()
 
