@@ -14,6 +14,13 @@ import pickle
 from cryptography.fernet import Fernet
 
 
+# def receiveMessageFromBuddy():
+
+#     while True:
+#         serverResponse = s.recv(1024)
+#         serverResponse = f.decrypt(serverResponse).decode('utf8')
+#         print(serverResponse)
+
 
 def logout(userName):
     setOffineData = {ConstantStrings.actionKey:ConstantStrings.requestSetOnline,ConstantStrings.nameKey:userName,ConstantStrings.onlineKey:0} # to set 0 in db when application is closed and the user is offline
@@ -144,15 +151,15 @@ def mainInterface(currentUserName):
                 if serverResponseArray[0] == "Successful connection":
                     print(colored("Use /file:'filename' to send file\n/open:'filename' to open file\n/update to update chat","cyan"))
                     
+                    # receive_thread = threading.Thread(target=receiveMessageFromBuddy) 
+                    # receive_thread.start()
+
                     while True:                  
                         message = input(">>")
                         #message = ""
                         #writeMessage_thread = threading.Thread(target=sendMessage,args=(message,))
                         #writeMessage_thread.start()
-                        #print("Test message %s" % (message))
-
-                        #receive_thread = threading.Thread(target=receiveMessage) 
-                        #receive_thread.start() 
+                        #print("Test message %s" % (message)) 
 
                         if message == logoutString:
                             logout(currentUserName)

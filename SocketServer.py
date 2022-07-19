@@ -13,6 +13,7 @@ from termcolor import colored
 
 
 connectionsSymmetricKeys = {}
+#clients = set()
 
 
 def Padding(s):
@@ -51,14 +52,12 @@ def threaded_client(connection):
         ip TEXT,
         port TEXT,
         online INT,
-        connection TEXT,
-        isWaitingRequest INT,
-        currentSymmetricKey TEXT); 
+        connection TEXT); 
         """)
     cur.close()
     conn.commit()
     conn.close()
-    
+
 
     def fetchAllChats():
         conn = sqlite3.connect(ConstantStrings.databaseUserName)
@@ -92,7 +91,7 @@ def threaded_client(connection):
 
         currentSymmetricKey = connectionsSymmetricKeys[connection]
 
-        #global f
+
 
         data = currentSymmetricKey.decrypt(data).decode('utf8')
 
@@ -100,6 +99,7 @@ def threaded_client(connection):
         jsonUserData += data
         userData = json.loads(jsonUserData)
         print(userData)
+
 
         if userData[ConstantStrings.actionKey] == ConstantStrings.registerAction:  # register user
             users = fetchAllUsers()
@@ -132,6 +132,14 @@ def threaded_client(connection):
                         
 
         if userData[ConstantStrings.actionKey] == ConstantStrings.loginAction: # login user
+
+            # conn = sqlite3.connect(ConstantStrings.databaseUserName)
+            # cur = conn.cursor()
+            # cur.execute('''UPDATE users SET currentSymmetricKey = ? WHERE name = ?''', (str(currentSymmetricKey), userData[ConstantStrings.nameKey]))
+            # cur.close()
+            # conn.commit()
+            # conn.close()
+
             results = fetchAllUsers()
             if len(results) != 0:
                 for user in results:
@@ -296,17 +304,19 @@ def threaded_client(connection):
                 cur.close()
                 conn.commit()
                 conn.close()
-                connection.sendall(currentSymmetricKey.encrypt("Upload chat\n".encode('utf8')))
+                connection.sendall(currentSymmetricKey.encrypt("Chat was changed\n".encode('utf8')))
             except:
                 connection.sendall(currentSymmetricKey.encrypt("Error sending message".encode('utf8')))
             
-            #users = fetchAllUsers()
+            users = fetchAllUsers()
 
-            #for user in users:
-                #if user[0] == userData["Receiver"]:
-                    #for client in clients:
-                        #if str(client) == user[5]:
-                            #client.sendall(userData["message"].encode('utf8'))
+            # for user in users:
+            #     if user[0] == userData["Receiver"]:
+            #         for client in clients:
+            #             if str(client) == user[5]:
+            #                 client.sendall(connectionsSymmetricKeys[client].encrypt(userData[ConstantStrings.messageKey].encode('utf8')))
+
+
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestSendFile:
             filename = os.path.basename(userData[ConstantStrings.fileNameKey]) # remove path if there is
             text = ""

@@ -4,15 +4,14 @@ import socket
 import json
 import threading
 import errorUIElement
+import ConstantStrings
+import hashlib
+import rsa
+import pickle
+from cryptography.fernet import Fernet
 
-#//TODO: Connect w/ socket server
 
-s = socket.socket()
 
-try:
-    s.connect(('',8888))
-except socket.error as error:
-    print(str(error))
 
 #//TODO: Views
 
@@ -122,12 +121,14 @@ class LoginPage(tk.Frame):
 def sendUserData(nameText,passwordText,ipText,portText,windowFrame,controller):
 
     if (nameText != "") and (passwordText != "") and (ipText != "") and (portText != "") and (nameText != " ") and (passwordText != " ") and (ipText != " ") and (portText != " "):
-        userData = {"action":"login","name":nameText,"password":passwordText,"ip":ipText,"port":portText}
-        jsonUserData = json.dumps(userData).encode('utf8')
-        s.sendall(jsonUserData)
-        serverResponse = s.recv(1024).decode('utf8')
-        print(serverResponse)
-        if serverResponse == "Success login":
+        global f
+
+        userData = {ConstantStrings.actionKey:ConstantStrings.loginAction,ConstantStrings.nameKey:nameText,ConstantStrings.passwordKey:passwordText,ConstantStrings.ipKey:ipText,ConstantStrings.portKey:portText}
+        jsonUserData = json.dumps(userData)
+        s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+        serverResponse = s.recv(1024)
+        serverResponse = f.decrypt(serverResponse).decode('utf8')
+        if serverResponse == ConstantStrings.successLoginServerAnswer:
             controller.show_frame(MainPage)
             global name
             name = nameText
@@ -186,14 +187,17 @@ class RegisterPage(tk.Frame):
 
 def sendNameAndPasswordRegisty(nameText,passwordText,windowFrame,controller):
     if (nameText != "") and (passwordText != "")  and (nameText != " ") and (passwordText != " "):
-        userData = {"action":"register","name":nameText,"password":passwordText}
-        jsonUserData = json.dumps(userData).encode('utf8')
-        s.sendall(jsonUserData)
-        serverResponse = s.recv(1024).decode('utf8')
+        userData = {ConstantStrings.actionKey:ConstantStrings.registerAction,ConstantStrings.nameKey:nameText,ConstantStrings.passwordKey:passwordText}
+        jsonUserData = json.dumps(userData)
+
+        global f
+        s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+        serverResponse = s.recv(1024)
+        serverResponse = f.decrypt(serverResponse).decode('utf8')
         print(serverResponse)
-        if serverResponse == "Success register":
+        if serverResponse ==  ConstantStrings.successRegisterServerAnswer:
             controller.show_frame(LoginPage)
-        if serverResponse == "Error register":
+        if serverResponse == ConstantStrings.failureRegisterServerAnswer:
             errorUIElement.errorLabel(6,1,windowFrame,"This name is busy, use another one")
 
     else:
@@ -279,9 +283,10 @@ class MainPage(tk.Frame):
 def logoutButtonPressed(controller):
     controller.show_frame(StartPage)
     global name
-    setOffineData = {"action":"set online","name":name,"online":0}
-    jsonUserData = json.dumps(setOffineData).encode('utf8')
-    s.sendall(jsonUserData)
+    setOffineData = {ConstantStrings.actionKey:ConstantStrings.requestSetOnline,ConstantStrings.nameKey:name,ConstantStrings.onlineKey:0} # to set 0 in db when application is closed and the user is offline
+    jsonUserData = json.dumps(setOffineData)
+    global f
+    s.sendall(f.encrypt(jsonUserData.encode('utf8')))
 
 def showMyInfo(listbox):
     global name
@@ -300,15 +305,15 @@ def showMyInfo(listbox):
 
 
 def onlineUsersRequest(onlineListbox):
-    userData = {"action":"Request:online users"}
-    jsonUserData = json.dumps(userData).encode('utf8')
-    s.sendall(jsonUserData)
-    serverResponse = s.recv(1024).decode('utf8')
-    onlineUsersArray = serverResponse.split(',')
-    print(onlineUsersArray)
+    userData = {ConstantStrings.actionKey:ConstantStrings.requestOnlineUsers}
+    jsonUserData = json.dumps(userData)
+
+    s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+    serverResponse = s.recv(1024)
+    serverResponse = f.decrypt(serverResponse).decode('utf8')
+    onlineUsersArray = serverResponse.split('\n')
 
     global name
-    print("\n Current name is %s" %(name))
 
     onlineListbox.delete(0,tk.END)
 
@@ -319,23 +324,19 @@ def onlineUsersRequest(onlineListbox):
 def searchUserByIPorName(ipText,nameText,searchListbox):
     userData = {}
     if nameText != "" and nameText != " " and (ipText == "" or ipText == " "):
-        print("name")
-        userData = {"action":"Request:search user","name":nameText}
+        userData = {ConstantStrings.actionKey:ConstantStrings.requestSearchUser,ConstantStrings.nameKey:nameText}
     elif ipText != "" and ipText != " " and (nameText == "" or nameText == " "):
-        print("ip")
-        userData = {"action":"Request:search user","ip":ipText}
+        userData = {ConstantStrings.actionKey:ConstantStrings.requestSearchUser,ConstantStrings.ipKey:ipText}
     elif nameText != "" and nameText != " " and ipText != "" and ipText != " ":
-        print("name and ip")
-        userData = {"action":"Request:search user","ip":ipText,"name":nameText}
+        userData = {ConstantStrings.actionKey:ConstantStrings.requestSearchUser,ConstantStrings.ipKey:ipText,ConstantStrings.nameKey:nameText}
     
     else:
         return None
 
-    jsonUserData = json.dumps(userData).encode('utf8')
-    s.sendall(jsonUserData)
-
-    serverResponse = s.recv(1024).decode('utf8')
-    print(serverResponse)
+    jsonUserData = json.dumps(userData)
+    s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+    serverResponse = s.recv(1024)
+    serverResponse = f.decrypt(serverResponse).decode('utf8')
     searchedUserinfoArray = serverResponse.split(',')
 
     searchListbox.delete(0,tk.END)
@@ -350,22 +351,53 @@ def searchUserByIPorName(ipText,nameText,searchListbox):
 def on_closing_Window():
     if messagebox.askokcancel("Quit", "Do you want to quit?"):
         global name
-        setOffineData = {"action":"set online","name":name,"online":0} # to set 0 in db when application is closed and the user is offline
-        jsonUserData = json.dumps(setOffineData).encode('utf8')
-        s.sendall(jsonUserData)
+        setOffineData = {ConstantStrings.actionKey:ConstantStrings.requestSetOnline,ConstantStrings.nameKey:name,ConstantStrings.onlineKey:0} # to set 0 in db when application is closed and the user is offline
+        jsonUserData = json.dumps(setOffineData)
+        global f
+        s.sendall(f.encrypt(jsonUserData.encode('utf8')))
         app.destroy()
 
 
 #//TODO: Create Application
 
 
+if __name__ == "__main__":
 
-name = "no name"
-currentIP = ""
-currentPort = ""
+    asyKey = rsa.newkeys(2048)
+    publicKey = asyKey[0]
+    privateKay = asyKey[1]
 
-app = ApplicationRoot()
-app.protocol("WM_DELETE_WINDOW", on_closing_Window)
-app.title("Messenger")
-app.geometry("1000x500")
-app.mainloop()
+    s = socket.socket()
+
+    try:
+        s.connect(('',8888))
+    except socket.error as error:
+        print(str(error))
+
+    # Pass the public key to the server, and the sha256
+    sendKey = pickle.dumps(publicKey)
+    sendKeySha256 = hashlib.sha256(sendKey).hexdigest()
+    s.sendall(pickle.dumps((sendKey,sendKeySha256)))
+
+    # Accept the key passed by the server and decrypt it
+    symKey,symKeySha256 = pickle.loads(s.recv(1024))
+
+    if hashlib.sha256(symKey).hexdigest() != symKeySha256:
+        print("Client hash and server arent equeal, response from client")
+    else:
+        symKey = pickle.loads(rsa.decrypt(symKey,privateKay))
+        
+        # Initialize the encrypted object
+        f = Fernet(symKey)
+
+        print("Generation was successfuly end")
+
+        name = "no name"
+        currentIP = ""
+        currentPort = ""
+
+        app = ApplicationRoot()
+        app.protocol("WM_DELETE_WINDOW", on_closing_Window)
+        app.title("Messenger")
+        app.geometry("1000x500")
+        app.mainloop()
