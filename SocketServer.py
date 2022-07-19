@@ -269,7 +269,7 @@ def threaded_client(connection):
                     if user[4] == 1: # check if online the user
                         for chat in chats:
                             if chat[0] == userData[ConstantStrings.nameKey]:
-                                currentChat += "                                        %s(%s):%s\n" % (chat[0],chat[2],chat[3])[::-1]
+                                currentChat += "                                                           %s(%s):%s\n" % (chat[0],chat[2],chat[3])[::-1]
                             elif chat[1] == userData[ConstantStrings.nameKey]:
                                 currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
                         sendData = "Successful connection\n%s" % (currentChat)
@@ -288,7 +288,7 @@ def threaded_client(connection):
 
             for chat in chats:
                 if chat[0] == userData[ConstantStrings.nameKey]:
-                    currentChat += "                                        %s(%s):%s\n" % (chat[0],chat[2],chat[3])[::-1]
+                    currentChat += "                                                           %s(%s):%s\n" % (chat[0],chat[2],chat[3])[::-1]
                 elif chat[1] == userData[ConstantStrings.nameKey]:
                     currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
             connection.sendall(currentSymmetricKey.encrypt(currentChat.encode('utf8')))
@@ -304,9 +304,11 @@ def threaded_client(connection):
                 cur.close()
                 conn.commit()
                 conn.close()
-                connection.sendall(currentSymmetricKey.encrypt("Chat was changed\n".encode('utf8')))
+                #connection.sendall(currentSymmetricKey.encrypt("Chat was changed\n".encode('utf8')))
+                print("Message was send")
             except:
-                connection.sendall(currentSymmetricKey.encrypt("Error sending message".encode('utf8')))
+                #connection.sendall(currentSymmetricKey.encrypt("Error sending message".encode('utf8')))
+                print("Error sending message")
             
             users = fetchAllUsers()
 

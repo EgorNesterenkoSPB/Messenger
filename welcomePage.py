@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import Tk, messagebox
 import socket
 import json
 import threading
@@ -9,6 +9,8 @@ import hashlib
 import rsa
 import pickle
 from cryptography.fernet import Fernet
+import time
+import numpy as np
 
 
 
@@ -249,25 +251,26 @@ class MainPage(tk.Frame):
         searchUserIPEntry.grid(row=1,column=1)
         searchListbox.grid(row=1,column=1)
 
-        startMessageWithUserButton = tk.Button(master=writeMessageFrame,text="Start chat")
+        chatFrame = tk.Frame(master=self,relief=tk.RIDGE,borderwidth=1)
+        chatListbox = tk.Listbox(master=chatFrame)
         startMessageEntry = tk.Entry(master=writeMessageFrame)
+        startMessageWithUserButton = tk.Button(master=writeMessageFrame,text="Start chat",command=lambda: threading.Thread(target=startChat,args=(startMessageEntry.get(),chatListbox,)).start())
         startMessageLabel = tk.Label(master=writeMessageFrame,text="User name:")
         startMessageLabel.grid(row=0,column=0)
         startMessageEntry.grid(row=0,column=1)
         startMessageWithUserButton.grid(row=1,column=1)
 
-        chatFrame = tk.Frame(master=self,relief=tk.RIDGE,borderwidth=1)
+        
         chatFrame.grid(row=1,column=2,sticky="nsew")
 
         opts = { 'ipadx': 10, 'ipady': 10, 'fill': tk.BOTH }
 
-        chatListbox = tk.Listbox(master=chatFrame)
         chatListbox.pack(side=tk.TOP,**opts)
         chatEntryMessage = tk.Entry(master=chatFrame)
         chatEntryMessage.pack(side=tk.TOP,**opts)
-        chatDisconnectButton = tk.Button(master=chatFrame,text="Disconnect")
-        chatDisconnectButton.pack(side=tk.LEFT,**opts)
-        chatSendMessageButton = tk.Button(master=chatFrame,text="Send")
+        chatUpdateButton = tk.Button(master=chatFrame,text="Update",command=lambda: threading.Thread(target=updateChat,args=(chatListbox,)).start())
+        chatUpdateButton.pack(side=tk.LEFT,**opts)
+        chatSendMessageButton = tk.Button(master=chatFrame,text="Send",command=lambda: threading.Thread(target=sendMessage,args=(chatEntryMessage.get(),chatEntryMessage)).start())
         chatSendMessageButton.pack(side=tk.RIGHT,**opts)
 
 
@@ -277,6 +280,66 @@ class MainPage(tk.Frame):
             self.columnconfigure(i,weight=1)
             self.rowconfigure(i,weight=1)
         
+
+def updateChat(listbox):
+
+    global name
+    global chatBuddyName
+
+    userMessage = {ConstantStrings.actionKey:ConstantStrings.requestUpdateChat,ConstantStrings.nameKey:name,ConstantStrings.chatBuddyNameKey:chatBuddyName}
+    jsonUserData = json.dumps(userMessage)
+
+    s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+    serverResponse = s.recv(1024)
+    serverResponse = f.decrypt(serverResponse).decode('utf8')
+    serverResponseArray = serverResponse.split('\n')
+
+    listbox.delete(0,tk.END)
+
+    for message in serverResponseArray:
+            listbox.insert(tk.END,message)
+
+
+
+
+
+def startChat(withUser,listbox):
+
+    global name
+    global chatBuddyName
+
+    chatBuddyName = withUser
+
+
+    userData = {ConstantStrings.actionKey:ConstantStrings.requestChatConnect,ConstantStrings.nameKey:name,ConstantStrings.chatBuddyNameKey:chatBuddyName}
+    jsonUserData = json.dumps(userData)
+
+    s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+    serverResponse = s.recv(1024)
+    serverResponse = f.decrypt(serverResponse).decode('utf8')
+    print(serverResponse)
+    serverResponseArray = serverResponse.split('\n')
+
+
+    if serverResponseArray[0] == "Successful connection":
+        listbox.delete(0,tk.END)
+
+        chat = np.array(serverResponseArray[1:len(serverResponseArray) - 2])
+
+        for message in chat:
+            listbox.insert(tk.END,message)
+
+
+def sendMessage(message,chatEntry):
+
+    global name
+    global chatBuddyName
+
+    userMessage = {ConstantStrings.actionKey:ConstantStrings.requestSendMessage,ConstantStrings.senderKey:name,ConstantStrings.receiverKey:chatBuddyName,ConstantStrings.dataKey:time.ctime(),ConstantStrings.messageKey:message}
+    jsonUserData = json.dumps(userMessage)
+    s.sendall(f.encrypt(jsonUserData.encode('utf8')))
+
+    chatEntry.delete(0,tk.END)
 
 
 
@@ -393,11 +456,12 @@ if __name__ == "__main__":
         print("Generation was successfuly end")
 
         name = "no name"
+        chatBuddyName = "no name"
         currentIP = ""
         currentPort = ""
 
         app = ApplicationRoot()
         app.protocol("WM_DELETE_WINDOW", on_closing_Window)
         app.title("Messenger")
-        app.geometry("1000x500")
+        app.geometry("1400x700")
         app.mainloop()

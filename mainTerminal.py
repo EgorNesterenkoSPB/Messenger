@@ -219,8 +219,8 @@ def mainInterface(currentUserName):
                         jsonUserData = json.dumps(userMessage)
 
                         s.sendall(f.encrypt(jsonUserData.encode('utf8')))
-                        serverResponse = s.recv(1024)
-                        serverResponse = f.decrypt(serverResponse).decode('utf8')
+                        # serverResponse = s.recv(1024)
+                        # serverResponse = f.decrypt(serverResponse).decode('utf8')
 
 
                         
