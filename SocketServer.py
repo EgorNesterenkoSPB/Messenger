@@ -1,4 +1,4 @@
-import socket 
+import socket
 import json
 import sqlite3
 import os
@@ -23,7 +23,7 @@ def Padding(s):
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # AF_Inet - use ethernet socket, SOCK_STREAM - use TCP protocol
 try:
-    s.bind(('127.0.0.1',8888)) 
+    s.bind(('127.0.0.1',8888))
 except socket.error as error:
     print(str(error))
 
@@ -52,7 +52,7 @@ def threaded_client(connection):
         ip TEXT,
         port TEXT,
         online INT,
-        connection TEXT); 
+        connection TEXT);
         """)
     cur.close()
     conn.commit()
@@ -129,7 +129,7 @@ def threaded_client(connection):
                         conn.close()
                         connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.successRegisterServerAnswer.encode('utf8')))
                         break
-                        
+
 
         if userData[ConstantStrings.actionKey] == ConstantStrings.loginAction: # login user
 
@@ -164,7 +164,7 @@ def threaded_client(connection):
                             connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.failureLoginServerAnswer.encode('utf8')))
             else:
                 connection.sendall(currentSymmetricKey.encrypt(ConstantStrings.failureLoginServerAnswer.encode('utf8')))
-        
+
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestOnlineUsers:
             results = fetchAllUsers()
             usersName = ""
@@ -174,7 +174,7 @@ def threaded_client(connection):
             connection.sendall(currentSymmetricKey.encrypt(usersName.encode('utf8')))
 
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestSetOnline:
-            
+
             if userData[ConstantStrings.onlineKey] == 1:
                 conn = sqlite3.connect(ConstantStrings.databaseUserName)
                 cur = conn.cursor()
@@ -189,7 +189,7 @@ def threaded_client(connection):
                 cur.close()
                 conn.commit()
                 conn.close()
-        
+
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestSearchUser:
             result = fetchAllUsers()
             userInfo = ""
@@ -258,7 +258,7 @@ def threaded_client(connection):
                             if user == result[len(result)-1]:
                                 connection.sendall(currentSymmetricKey.encrypt("No user with this ip".encode('utf8')))
 
-            
+
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestChatConnect:
             result = fetchAllUsers()
             chats = fetchAllChats()
@@ -281,7 +281,7 @@ def threaded_client(connection):
                 else:
                     if user == result[len(result)-1]:
                         connection.sendall(currentSymmetricKey.encrypt("User with this name not found".encode('utf8')))
-        
+
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestUpdateChat:
             chats = fetchAllChats()
             currentChat = ""
@@ -292,11 +292,11 @@ def threaded_client(connection):
                 elif chat[1] == userData[ConstantStrings.nameKey]:
                     currentChat += "%s(%s):%s\n" % (chat[0],chat[2],chat[3])
             connection.sendall(currentSymmetricKey.encrypt(currentChat.encode('utf8')))
-            
-            
+
+
 
         if userData[ConstantStrings.actionKey] == ConstantStrings.requestSendMessage:
-            
+
             try:
                 conn = sqlite3.connect(ConstantStrings.databaseUserName)
                 cur = conn.cursor()
@@ -309,7 +309,7 @@ def threaded_client(connection):
             except:
                 #connection.sendall(currentSymmetricKey.encrypt("Error sending message".encode('utf8')))
                 print("Error sending message")
-            
+
             users = fetchAllUsers()
 
             # for user in users:
@@ -328,7 +328,7 @@ def threaded_client(connection):
                 text = text.encode('utf8')
                 if not text:
                     break
-                
+
                 file.write(text)
 
                 conn = sqlite3.connect(ConstantStrings.databaseUserName)
@@ -337,14 +337,17 @@ def threaded_client(connection):
                 cur.close()
                 conn.commit()
                 conn.close()
-                connection.sendall(currentSymmetricKey.encrypt("Upload chat\n".encode('utf8')))
+
         if  userData[ConstantStrings.actionKey] == ConstantStrings.requestOpenFile:
             filename = userData[ConstantStrings.fileNameKey]
             text = ""
 
-            with open("Server_%s" % (filename),"rb") as file:
-                text = file.read()
-            connection.sendall(currentSymmetricKey.encrypt(text))
+            try:
+                with open("Server_%s" % (filename),"rb") as file:
+                    text = file.read()
+                connection.sendall(currentSymmetricKey.encrypt(text))
+            except:
+                connection.sendall(currentSymmetricKey.encrypt("File not found".encode('utf8')))
 
             #chats = fetchAllChats()
 
@@ -370,7 +373,7 @@ while True:
     else:
         publicKey = pickle.loads(publicKeyPK)
         print("Accepted public key")
-    
+
     #encrypting and passing a symmetric key with a public key.
     #Generate a key for symmetric encryption
     symKey = Fernet.generate_key()
@@ -382,7 +385,7 @@ while True:
     # Initialize the encrypted object
     f = Fernet(symKey)
 
-    #store current session user symmetric key 
+    #store current session user symmetric key
     connectionsSymmetricKeys[connection] = f
 
 
@@ -390,6 +393,3 @@ while True:
     #clients.add(connection)
     start_new_thread(threaded_client,(connection,))
 s.close()
-
-
-

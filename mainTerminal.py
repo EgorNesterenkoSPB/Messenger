@@ -150,16 +150,16 @@ def mainInterface(currentUserName):
 
                 if serverResponseArray[0] == "Successful connection":
                     print(colored("Use /file:'filename' to send file\n/open:'filename' to open file\n/update to update chat","cyan"))
-                    
-                    # receive_thread = threading.Thread(target=receiveMessageFromBuddy) 
+
+                    # receive_thread = threading.Thread(target=receiveMessageFromBuddy)
                     # receive_thread.start()
 
-                    while True:                  
+                    while True:
                         message = input(">>")
                         #message = ""
                         #writeMessage_thread = threading.Thread(target=sendMessage,args=(message,))
                         #writeMessage_thread.start()
-                        #print("Test message %s" % (message)) 
+                        #print("Test message %s" % (message))
 
                         if message == logoutString:
                             logout(currentUserName)
@@ -181,17 +181,18 @@ def mainInterface(currentUserName):
                             print(serverResponse)
                             continue
                         if "/file:" in message:
+                            fileName = message.partition("/file:")[2]
+
+                            text_read = ""
+
                             try:
-                                fileName = message.partition("/file:")[2]
+                                with open(fileName, "rb") as file_object:
+                                    text_read = file_object.read()
+                                    text_read = text_read.decode('utf8')
                             except:
                                 print(colored("File with this name not found","red"))
                                 continue
-                            text_read = ""
 
-                            with open(fileName, "rb") as file_object:
-                                text_read = file_object.read()
-                                text_read = text_read.decode('utf8')
-                            
                             userMessage = {ConstantStrings.actionKey:ConstantStrings.requestSendFile,ConstantStrings.senderKey:currentUserName,ConstantStrings.receiverKey:chatBuddyName,ConstantStrings.dataKey:time.ctime(),ConstantStrings.fileNameKey:fileName,ConstantStrings.textKey:text_read}
                             jsonUserData = json.dumps(userMessage)
 
@@ -223,13 +224,13 @@ def mainInterface(currentUserName):
                         # serverResponse = f.decrypt(serverResponse).decode('utf8')
 
 
-                        
+
                         #if serverResponse == "Message was send":
                         #    print("                                     %s(%s):%s\n" % (currentUserName,time.ctime(),message)[::-1])
                         #else:
                         #    print(serverResponse)
 
-        
+
         else:
             print(colored(unknownCommandString,"red"))
 
@@ -361,7 +362,7 @@ if __name__ == '__main__':
         print(colored("Client hash and server arent equeal, response from client","red"))
     else:
         symKey = pickle.loads(rsa.decrypt(symKey,privateKay))
-        
+
         # Initialize the encrypted object
         f = Fernet(symKey)
 
